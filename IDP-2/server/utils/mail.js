@@ -1,45 +1,31 @@
 const nodemailer = require('nodemailer');
 
-// Re-create transporter for each call to avoid stale connections on cloud platforms
+/**
+ * Creates a robust transporter for Gmail.
+ * Using service: 'gmail' is the most reliable method for Gmail SMTP.
+ */
 const getTransporter = () => {
     const user = (process.env.EMAIL_USER || '').trim();
     const pass = (process.env.EMAIL_PASSWORD || '').trim();
 
+    if (!user || !pass) {
+        console.error('❌ EMAIL_USER or EMAIL_PASSWORD missing in environment variables!');
+    }
+
     return nodemailer.createTransport({
-        host: 'smtp.gmail.com',
-        port: 465,
-        secure: true,
+        service: 'gmail',
         auth: { user, pass },
-        connectionTimeout: 30000,
-        socketTimeout: 30000,
-        tls: {
-            rejectUnauthorized: false
-        }
+        connectionTimeout: 10000, 
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
     });
 };
 
-const sendResetEmail = async (email, name, token, role) => {
-    const transporter = getTransporter();
-    const resetUrl = `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/reset-password/${token}/${role}`;
-    const sender = (process.env.EMAIL_USER || '').trim();
-    
-    const mailOptions = {
-        from: `"CEPS Portal" <${sender}>`,
-        to: email.trim(),
-        subject: 'Password Reset Request',
-        html: `
-            <h1>Password Reset</h1>
-            <p>Hello ${name},</p>
-            <p>You requested a password reset. Please click the link below to reset your password:</p>
-            <a href="${resetUrl}">${resetUrl}</a>
-            <p>This link will expire in 1 hour.</p>
-        `
-    };
-
-    return transporter.sendMail(mailOptions);
-};
-
+/**
+ * Sends an OTP email for password reset.
+ */
 const sendOtpEmail = async (email, name, otp, role) => {
+    console.log(`📧 Attempting to send OTP to: ${email}...`);
     const transporter = getTransporter();
     const sender = (process.env.EMAIL_USER || '').trim();
 
@@ -48,25 +34,35 @@ const sendOtpEmail = async (email, name, otp, role) => {
         to: email.trim(),
         subject: 'Your CEPS OTP Code',
         html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-                <h2 style="color: #4f46e5;">CEPS Portal - Password Reset</h2>
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 500px; margin: auto;">
+                <h2 style="color: #4f46e5; text-align: center;">CEPS Portal</h2>
                 <p>Hello <strong>${name}</strong>,</p>
-                <p>Your 6-digit OTP code to reset your <strong>${role}</strong> account password is:</p>
-                <div style="background: #f3f4f6; padding: 15px; font-size: 24px; font-weight: bold; text-align: center; border-radius: 5px; letter-spacing: 5px; color: #111827;">
+                <p>You requested an OTP to reset your <strong>${role}</strong> account password.</p>
+                <div style="background: #f3f4f6; padding: 20px; font-size: 32px; font-weight: bold; text-align: center; border-radius: 12px; letter-spacing: 8px; color: #111827; margin: 20px 0;">
                     ${otp}
                 </div>
-                <p>This code will expire in 10 minutes.</p>
-                <p>If you did not request this, please ignore this email.</p>
-                <hr style="border: 0; border-top: 1px solid #eee; margin-top: 20px;" />
-                <p style="font-size: 12px; color: #6b7280;">Campus Event Planning & Scheduling Portal</p>
+                <p style="text-align: center; color: #6b7280; font-size: 14px;">This code will expire in 10 minutes.</p>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+                <p style="font-size: 12px; color: #9ca3af; text-align: center;">Campus Event Planning & Scheduling Portal</p>
             </div>
         `
     };
 
-    return transporter.sendMail(mailOptions);
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`✅ OTP sent successfully to ${email}`);
+        return info;
+    } catch (error) {
+        console.error(`❌ OTP delivery failed for ${email}:`, error.message);
+        throw error;
+    }
 };
 
+/**
+ * Sends a welcome email after registration.
+ */
 const sendWelcomeEmail = async (email, name, role) => {
+    console.log(`📧 Sending Welcome email to: ${email}...`);
     const transporter = getTransporter();
     const sender = (process.env.EMAIL_USER || '').trim();
 
@@ -75,72 +71,128 @@ const sendWelcomeEmail = async (email, name, role) => {
         to: email.trim(),
         subject: 'Welcome to CEPS Portal!',
         html: `
-            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-                <h2 style="color: #4f46e5;">Welcome to CEPS!</h2>
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 500px; margin: auto;">
+                <h2 style="color: #4f46e5; text-align: center;">Welcome to CEPS!</h2>
                 <p>Hello <strong>${name}</strong>,</p>
-                <p>Your <strong>${role}</strong> account has been successfully registered on the Campus Event Planning & Scheduling Portal.</p>
+                <p>Your <strong>${role}</strong> account has been successfully registered on the CEPS Portal.</p>
                 <p>You can now log in to discover and participate in campus events.</p>
-                <hr style="border: 0; border-top: 1px solid #eee; margin-top: 20px;" />
-                <p style="font-size: 12px; color: #6b7280;">Campus Event Planning & Scheduling Portal</p>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+                <p style="font-size: 12px; color: #9ca3af; text-align: center;">Campus Event Planning & Scheduling Portal</p>
             </div>
         `
     };
 
-    return transporter.sendMail(mailOptions);
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`✅ Welcome email sent successfully to ${email}`);
+        return info;
+    } catch (error) {
+        console.error(`❌ Welcome email delivery failed for ${email}:`, error.message);
+    }
 };
 
+/**
+ * Sends credentials to newly created faculty accounts.
+ */
 const sendCredentialsEmail = async (email, name, password) => {
+    console.log(`📧 Sending Faculty Credentials to: ${email}...`);
     const transporter = getTransporter();
     const sender = (process.env.EMAIL_USER || '').trim();
 
     const mailOptions = {
         from: `"CEPS Portal" <${sender}>`,
         to: email.trim(),
-        subject: 'Your CEPS Faculty Account Credentials',
+        subject: 'Your CEPS Faculty Credentials',
+        html: `
+            <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 500px; margin: auto;">
+                <h2 style="color: #4f46e5; text-align: center;">Faculty Account Created</h2>
+                <p>Hello <strong>${name}</strong>,</p>
+                <p>An administrator has created your faculty account. Use the credentials below to log in:</p>
+                <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 15px 0;">
+                    <p style="margin: 5px 0;"><strong>Email:</strong> ${email}</p>
+                    <p style="margin: 5px 0;"><strong>Password:</strong> ${password}</p>
+                </div>
+                <p>Please log in and change your password immediately.</p>
+                <hr style="border: 0; border-top: 1px solid #eee; margin: 20px 0;" />
+                <p style="font-size: 12px; color: #9ca3af; text-align: center;">Campus Event Planning & Scheduling Portal</p>
+            </div>
+        `
+    };
+
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`✅ Credentials sent successfully to ${email}`);
+        return info;
+    } catch (error) {
+        console.error(`❌ Credentials delivery failed for ${email}:`, error.message);
+        throw error;
+    }
+};
+
+/**
+ * Sends a link-based reset email.
+ */
+const sendResetEmail = async (email, name, token, role) => {
+    console.log(`📧 Sending Reset Link to: ${email}...`);
+    const transporter = getTransporter();
+    const sender = (process.env.EMAIL_USER || '').trim();
+    const resetUrl = `${process.env.VITE_FRONTEND_URL || 'http://localhost:5173'}/reset-password/${token}/${role}`;
+    
+    const mailOptions = {
+        from: `"CEPS Portal" <${sender}>`,
+        to: email.trim(),
+        subject: 'Password Reset Request',
         html: `
             <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-                <h2 style="color: #4f46e5;">Welcome to CEPS Portal!</h2>
-                <p>Hello <strong>${name}</strong>,</p>
-                <p>An administrator has created a faculty account for you. Here are your login credentials:</p>
-                <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                    <p><strong>Email:</strong> ${email}</p>
-                    <p><strong>Password:</strong> ${password}</p>
-                </div>
-                <p>Please log in and change your password as soon as possible.</p>
-                <hr style="border: 0; border-top: 1px solid #eee; margin-top: 20px;" />
-                <p style="font-size: 12px; color: #6b7280;">Campus Event Planning & Scheduling Portal</p>
+                <h2>Password Reset Request</h2>
+                <p>Hello ${name},</p>
+                <p>Click the link below to reset your password:</p>
+                <a href="${resetUrl}" style="background: #4f46e5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">Reset Password</a>
+                <p style="margin-top: 20px;">Or copy this link: ${resetUrl}</p>
             </div>
         `
     };
 
-    return transporter.sendMail(mailOptions);
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`✅ Reset link sent successfully to ${email}`);
+        return info;
+    } catch (error) {
+        console.error(`❌ Reset link delivery failed for ${email}:`, error.message);
+        throw error;
+    }
 };
 
+/**
+ * Sends payment confirmation.
+ */
 const sendPaymentConfirmationEmail = async (email, name, eventTitle, amount, transactionId) => {
+    console.log(`📧 Sending Payment Confirmation to: ${email}...`);
     const transporter = getTransporter();
     const sender = (process.env.EMAIL_USER || '').trim();
 
     const mailOptions = {
         from: `"CEPS Portal" <${sender}>`,
         to: email.trim(),
-        subject: 'Payment Confirmation - CEPS Portal',
+        subject: 'Payment Verified - CEPS Portal',
         html: `
             <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
                 <h2 style="color: #10b981;">Payment Verified!</h2>
                 <p>Hello <strong>${name}</strong>,</p>
-                <p>Your payment for the event <strong>${eventTitle}</strong> has been verified successfully.</p>
-                <div style="background: #f3f4f6; padding: 15px; border-radius: 5px; margin: 15px 0;">
-                    <p><strong>Amount Paid:</strong> ₹${amount}</p>
-                    <p><strong>Transaction ID:</strong> ${transactionId || 'N/A'}</p>
-                </div>
-                <p>You are now fully registered for this event. See you there!</p>
-                <hr style="border: 0; border-top: 1px solid #eee; margin-top: 20px;" />
-                <p style="font-size: 12px; color: #6b7280;">Campus Event Planning & Scheduling Portal</p>
+                <p>Your payment for <strong>${eventTitle}</strong> has been verified.</p>
+                <p><strong>Amount:</strong> ₹${amount}</p>
+                <p><strong>Transaction ID:</strong> ${transactionId || 'N/A'}</p>
             </div>
         `
     };
 
-    return transporter.sendMail(mailOptions);
+    try {
+        const info = await transporter.sendMail(mailOptions);
+        console.log(`✅ Payment confirmation sent successfully to ${email}`);
+        return info;
+    } catch (error) {
+        console.error(`❌ Payment confirmation failed for ${email}:`, error.message);
+    }
 };
 
 module.exports = { 

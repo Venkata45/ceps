@@ -326,13 +326,11 @@ router.post('/send-otp', async (req, res) => {
             await sendOtpEmail(user.email, user.name, otp, role);
             res.json({ msg: 'OTP sent successfully to your email.' });
         } catch (mailErr) {
-            console.error('OTP mail error:', mailErr.message);
-            // SUCCESS FALLBACK: We return 200 because the OTP WAS generated and saved.
-            // We tell the user the code directly so they can proceed.
-            return res.status(200).json({ 
-                msg: `Email failed to send, but your OTP is: ${otp}`,
-                otp: otp, 
-                emailError: true
+            console.error('OTP delivery failed:', mailErr.message);
+            // If the email fails, we return a 500 error so the frontend knows it failed
+            return res.status(500).json({ 
+                msg: 'Failed to send OTP email. Please check your internet connection or try again later.',
+                error: mailErr.message 
             });
         }
     } catch (err) {
@@ -353,7 +351,7 @@ router.post('/verify-otp', async (req, res) => {
         }
 
         const Model = role === 'faculty' ? Faculty : Student;
-        const user = await Model.findOne({ email: email.trim() });
+        const user = await Model.findOne({ email: email.toLowerCase().trim() });
 
         if (!user || !user.otpCode || !user.otpExpires) {
             return res.status(400).json({ msg: 'Invalid request. Please request a new OTP.' });
@@ -391,7 +389,7 @@ router.post('/reset-password-otp', async (req, res) => {
         }
 
         const Model = role === 'faculty' ? Faculty : Student;
-        const user = await Model.findOne({ email: email.trim() });
+        const user = await Model.findOne({ email: email.toLowerCase().trim() });
 
         if (!user) {
             return res.status(400).json({ msg: 'User not found' });
