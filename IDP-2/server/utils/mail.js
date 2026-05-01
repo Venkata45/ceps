@@ -2,7 +2,7 @@ const nodemailer = require('nodemailer');
 
 /**
  * Creates a robust transporter for Gmail.
- * Using service: 'gmail' is the most reliable method for Gmail SMTP.
+ * Using Port 587 with STARTTLS is generally more reliable on cloud platforms like Render.
  */
 const getTransporter = () => {
     const user = (process.env.EMAIL_USER || '').trim();
@@ -13,11 +13,18 @@ const getTransporter = () => {
     }
 
     return nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false, // Use STARTTLS
         auth: { user, pass },
-        connectionTimeout: 10000, 
-        greetingTimeout: 10000,
-        socketTimeout: 10000,
+        // Increased timeouts to handle cloud network latency
+        connectionTimeout: 20000, 
+        greetingTimeout: 20000,
+        socketTimeout: 20000,
+        tls: {
+            // This ensures the connection isn't rejected by Render's firewall
+            rejectUnauthorized: false
+        }
     });
 };
 
