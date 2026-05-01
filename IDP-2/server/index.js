@@ -1,4 +1,13 @@
 require('dotenv').config();
+console.log('🚀 Server starting...');
+process.on('uncaughtException', (err) => {
+    console.error('❌ UNCAUGHT EXCEPTION:', err.message);
+    console.error(err.stack);
+    process.exit(1);
+});
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ UNHANDLED REJECTION:', reason);
+});
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -44,9 +53,15 @@ app.get('/health', (req, res) => {
 });
 
 // DB Connection
-mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log('MongoDB Connected'))
-    .catch(err => console.log(err));
+if (!process.env.MONGO_URI) {
+    console.error('❌ MONGO_URI is missing in environment variables!');
+} else {
+    mongoose.connect(process.env.MONGO_URI)
+        .then(() => console.log('✅ MongoDB Connected'))
+        .catch(err => {
+            console.error('❌ MongoDB Connection Error:', err.message);
+        });
+}
 
 // Make io accessible to routes
 app.use((req, res, next) => {
