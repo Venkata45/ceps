@@ -21,6 +21,8 @@ const getTransporter = () => {
         connectionTimeout: 20000, 
         greetingTimeout: 20000,
         socketTimeout: 20000,
+        logger: true,
+        debug: true,
         tls: {
             // This ensures the connection isn't rejected by Render's firewall
             rejectUnauthorized: false

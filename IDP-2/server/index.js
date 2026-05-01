@@ -10,12 +10,7 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
     cors: {
-        origin: [
-            'http://localhost:5173',
-            'http://localhost:3000',
-            'https://ceps-e20-chi.vercel.app',
-            /\.vercel\.app$/
-        ],
+        origin: true, // Allow all origins for now to prevent CORS blocking during deployment
         methods: ['GET', 'POST'],
         credentials: true
     },
@@ -38,6 +33,15 @@ app.use(cors({
 }));
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Health Check & Diagnostics
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        emailConfigured: !!(process.env.EMAIL_USER && process.env.EMAIL_PASSWORD),
+        emailUser: process.env.EMAIL_USER ? 'Configured' : 'MISSING'
+    });
+});
 
 // DB Connection
 mongoose.connect(process.env.MONGO_URI)
@@ -67,9 +71,16 @@ io.on('connection', (socket) => {
     });
 });
 
-const PORT = process.env.PORT || 5000;
-
-server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log('--- Email Configuration Status ---');
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASSWORD) {
+        console.log(`✅ Email configured for: ${process.env.EMAIL_USER}`);
+    } else {
+        console.log('❌ EMAIL_USER or EMAIL_PASSWORD missing in Environment Variables!');
+    }
+    console.log('---------------------------------');
+});
 
 const shutdown = (cb) => {
     try {
