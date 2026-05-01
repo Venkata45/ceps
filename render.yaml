@@ -3,7 +3,7 @@ services:
     name: ceps-backend
     env: node
     plan: free
-    rootDir: IDP-2/server
+    rootDir: server
     buildCommand: npm install
     startCommand: node index.js
     envVars:
