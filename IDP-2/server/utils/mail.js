@@ -6,7 +6,9 @@ const nodemailer = require('nodemailer');
  */
 const getTransporter = () => {
     const user = (process.env.EMAIL_USER || '').trim();
-    const pass = (process.env.EMAIL_PASSWORD || '').trim();
+    // Gmail App Passwords should not have spaces, but users often copy them with spaces.
+    // This removes ALL spaces from the password to ensure it works perfectly.
+    const pass = (process.env.EMAIL_PASSWORD || '').replace(/\s/g, '');
 
     if (!user || !pass) {
         console.error('❌ EMAIL_USER or EMAIL_PASSWORD missing in environment variables!');
