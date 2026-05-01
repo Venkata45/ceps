@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CEPS</title>
+  <script type="module" crossorigin src="/assets/index-CmGLN8wZ.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-_oUNNc3q.css">
+</head>
+<script>
+  // Suppress noise from broken browser extensions
+  window.addEventListener('error', function (e) {
+    if (e.message && (e.message.includes('chrome-extension://') || e.filename && e.filename.includes('chrome-extension://'))) {
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  }, true);
+
+  // Override console.error to filter out extension 404s
+  const originalConsoleError = console.error;
+  console.error = function (...args) {
+    if (args[0] && typeof args[0] === 'string' && (args[0].includes('chrome-extension://') || args[0].includes('net::ERR_FILE_NOT_FOUND'))) {
+      return;
+    }
+    originalConsoleError.apply(console, args);
+  };
+</script>
+
+<body>
+  <div id="root"></div>
+</body>
+
+</html>
